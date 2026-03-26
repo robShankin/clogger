@@ -31,7 +31,7 @@ chmod +x "$APPEND_SCRIPT"
 CLOGGER_PERMS=(
   "Bash(mkdir -p:*)"
   "Bash(printf:*)"
-  "Bash($APPEND_SCRIPT:*)"
+  "Bash(~/.claude/clogger-append:*)"
 )
 
 if command -v python3 &>/dev/null; then

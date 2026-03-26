@@ -30,7 +30,7 @@ A file like `clogger-files/clogger_2026-03-26_a3f2b1.txt` will appear in **whate
 
 ## What the log looks like
 
-```
+````
 [2026-03-26T14:32:00Z] USER: how do I reverse a string in python
 [2026-03-26T14:32:01Z] CLAUDE: You can reverse a string with slicing: `s[::-1]`
 ---
@@ -39,7 +39,7 @@ s.split().reverse().join()
 ```
 [2026-03-26T14:32:46Z] CLAUDE: Close — you need `''` as the split/join delimiter: `s.split('').reverse().join('')`
 ---
-```
+````
 
 ## Multiple sessions same day
 

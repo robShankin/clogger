@@ -17,13 +17,23 @@ cat > "$APPEND_SCRIPT" << 'SCRIPTEOF'
 #!/usr/bin/env bash
 # clogger-append <logfile> — reads stdin, prepends ISO8601 timestamp to USER: and CLAUDE: lines
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+LOGFILE="$1"
+
+if ! exec 3>> "$LOGFILE" 2>/dev/null; then
+  printf '[%s] APPEND-FAILED: could not open %s\n' "$TS" "$LOGFILE" \
+    >> "$HOME/.claude/clogger-errors.log"
+  exit 1
+fi
+
 while IFS= read -r line; do
   if [[ "$line" == "USER: "* ]] || [[ "$line" == "CLAUDE: "* ]]; then
-    printf '[%s] %s\n' "$TS" "$line"
+    printf '[%s] %s\n' "$TS" "$line" >&3
   else
-    printf '%s\n' "$line"
+    printf '%s\n' "$line" >&3
   fi
-done >> "$1"
+done
+
+exec 3>&-
 SCRIPTEOF
 chmod +x "$APPEND_SCRIPT"
 

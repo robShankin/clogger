@@ -22,11 +22,16 @@ In any Claude Code session, type these commands directly into the chat:
 
 | Command | Effect |
 |---|---|
-| `/clogger` | Start logging this session |
+| `/clogger` | Start a new log for this session |
+| `/clogger resume` | Reattach to the most recent active log in this directory |
 | `/clogger stop` | Stop logging this session |
 | `/clogger status` | Show current log filename (or `clogger off`) |
 
 A file like `clogger-files/clogger_2026-03-26_a3f2b1.txt` will appear in **whatever directory you have open in Claude Code** and grow as you chat. The `clogger-files/` folder is created automatically if it doesn't exist.
+
+### After a context compaction
+
+If Claude compacts its context mid-session, logging will stop (Claude loses its in-context state). Run `/clogger resume` to continue writing to the same log file, or `/clogger` to start a new one.
 
 ## What the log looks like
 
@@ -41,9 +46,9 @@ s.split().reverse().join()
 ---
 ````
 
-## Multiple sessions same day
+## Multiple sessions
 
-Each session gets its own file (the random suffix at the end). They won't collide.
+Each `/clogger` start creates its own file (the random suffix at the end). They won't collide. Old log files remain in `clogger-files/` as history.
 
 ## Uninstall
 

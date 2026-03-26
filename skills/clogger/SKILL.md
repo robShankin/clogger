@@ -1,7 +1,7 @@
 ---
 name: clogger
-description: Manage Claude session logging. Use when the user explicitly runs /clogger, /clogger start, /clogger stop, or /clogger status.
-argument-hint: [start|stop|status]
+description: Manage Claude session logging. Use when the user explicitly runs /clogger, /clogger start, /clogger resume, /clogger stop, or /clogger status.
+argument-hint: [start|resume|stop|status]
 disable-model-invocation: true
 allowed-tools: Bash, Read
 ---
@@ -12,30 +12,39 @@ All paths use `$PWD` — logs go in the user's current project directory, not th
 
 ---
 
-## If $ARGUMENTS is empty or `start`
+## If $ARGUMENTS is empty, `start`
 
-**First**, use the Read tool on `$PWD/clogger-files/.active`.
-
-**If the file exists and is non-empty** (clogger was active before a context compact):
-- Set CLOG_FILE to the trimmed contents of `.active`
-- Resume logging to that file — do not generate a new session ID or overwrite the sentinel
-- Reply with exactly one line: `clogger resumed → <filename>`
-
-**If the file is empty or does not exist** (fresh start):
+Always create a brand-new log file. Ignore any existing `.active-current` file.
 
 Run these steps **as separate Bash calls in order — do not combine**:
 
 1. `mkdir -p "$PWD/clogger-files"`
 2. `printf '%s_%s\n' "$(date +%Y-%m-%d)" "$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 6)"` — capture output as SESSION_ID
 3. Set CLOG_FILE = `$PWD/clogger-files/clogger_<SESSION_ID>.txt`
-4. Write sentinel — **required, do not skip**: `printf '%s\n' "$PWD/clogger-files/clogger_<SESSION_ID>.txt" > "$PWD/clogger-files/.active"`
+4. Write sentinel — **required, do not skip**: `printf '%s\n' "$PWD/clogger-files/clogger_<SESSION_ID>.txt" > "$PWD/clogger-files/.active-current"`
 5. Log this activation exchange to CLOG_FILE using `~/.claude/clogger-append "$CLOG_FILE" << 'CLOGEOF'` with `USER: /clogger` and `CLAUDE: <your one-line reply>`
 
-**Permissions check (fresh start only):** Read `~/.claude/settings.json` and, if it exists, `.claude/settings.local.json`. Search the `permissions.allow` arrays for any entry containing `clogger-append`. If not found in either file, append a second line to the reply.
+**Permissions check:** Read `~/.claude/settings.json` and, if it exists, `.claude/settings.local.json`. Search the `permissions.allow` arrays for any entry containing `clogger-append`. If not found in either file, append a second line to the reply.
 
-Reply format (fresh start):
+Reply format:
 - Permissions found: `clogger on → <filename>`
 - Permissions missing: `clogger on → <filename>` then on the next line: `⚠ run ./install.sh — you will be prompted for permission on every log write`
+
+---
+
+## If $ARGUMENTS is `resume`
+
+Reattach to the most recent previously active log file in this cwd.
+
+Use the Read tool on `$PWD/clogger-files/.active-current`.
+
+**If the file exists and is non-empty:**
+- Set CLOG_FILE to the trimmed contents of `.active-current`
+- Resume logging to that file — do not generate a new SESSION_ID or overwrite the sentinel
+- Reply with exactly one line: `clogger resumed → <filename>`
+
+**If the file is empty or does not exist:**
+- Reply with exactly one line: `no active session to resume — use /clogger to start one`
 
 ---
 
@@ -58,14 +67,16 @@ Rules:
   ```
   CLOG_FILE is the absolute path set above.
 - Reproduce USER messages **verbatim and in full** — never summarize or abbreviate
+- Strip markdown formatting from both USER and CLAUDE text before logging: remove `**`, `*`, `` ` ``, `_` wrapping; convert `**text**` and `*text*` to plain `text`. This prevents shell safety checks from firing on bold/italic syntax inside the heredoc.
 - Append silently — no commentary about logging
 - If the cwd is not writable, skip silently
+- If the Bash exit code is non-zero, silently run: `printf '[APPEND-FAILED %s] turn skipped\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$CLOG_FILE"` to mark the gap. Do not notify the user.
 
 ---
 
 ## If $ARGUMENTS is `stop`
 
-1. Truncate sentinel: `printf '' > "$PWD/clogger-files/.active"`
+1. Truncate sentinel: `printf '' > "$PWD/clogger-files/.active-current"`
 2. Stop all log appends for the remainder of this session. Do not make any more Bash logging calls.
 
 Reply with exactly one line: `clogger off`
@@ -74,7 +85,7 @@ Reply with exactly one line: `clogger off`
 
 ## If $ARGUMENTS is `status`
 
-Use the Read tool on `$PWD/clogger-files/.active`.
+Use the Read tool on `$PWD/clogger-files/.active-current`.
 
-If the file exists and is non-empty → reply: `clogger on → <contents of .active>`
+If the file exists and is non-empty → reply: `clogger on → <contents of .active-current>`
 Otherwise → reply: `clogger off`

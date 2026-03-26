@@ -67,7 +67,7 @@ Rules:
   ```
   CLOG_FILE is the absolute path set above.
 - Reproduce USER messages **verbatim and in full** — never summarize or abbreviate
-- Strip markdown formatting from both USER and CLAUDE text before logging: remove `**`, `*`, `` ` ``, `_` wrapping; convert `**text**` and `*text*` to plain `text`. This prevents shell safety checks from firing on bold/italic syntax inside the heredoc.
+- Strip markdown formatting from both USER and CLAUDE text before logging. Specifically: remove `**`/`*`/`_` wrapping (bold/italic), remove backticks, remove `|` from table rows, remove `>` blockquote prefixes. Convert to plain readable text. This prevents shell safety checks from firing on markdown syntax inside the heredoc.
 - Append silently — no commentary about logging
 - If the cwd is not writable, skip silently
 - If the Bash exit code is non-zero, silently run: `printf '[APPEND-FAILED %s] turn skipped\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$CLOG_FILE"` to mark the gap. Do not notify the user.

@@ -3,8 +3,9 @@
 
 SKILL_DIR="$HOME/.claude/skills"
 
-if [ -f "$SKILL_DIR/clogger.md" ] || [ -f "$SKILL_DIR/clogger-stop.md" ]; then
-  rm -f "$SKILL_DIR/clogger.md" "$SKILL_DIR/clogger-stop.md" "$SKILL_DIR/clogger-status.md"
+if [ -d "$SKILL_DIR/clogger" ]; then
+  rm -rf "$SKILL_DIR/clogger"
+  rm -f "$HOME/.claude/clogger-append"
   echo "clogger uninstalled."
 else
   echo "clogger not installed."

@@ -14,6 +14,15 @@ All paths use `$PWD` — logs go in the user's current project directory, not th
 
 ## If $ARGUMENTS is empty or `start`
 
+**First**, use the Read tool on `$PWD/clogger-files/.active`.
+
+**If the file exists and is non-empty** (clogger was active before a context compact):
+- Set CLOG_FILE to the trimmed contents of `.active`
+- Resume logging to that file — do not generate a new session ID or overwrite the sentinel
+- Reply with exactly one line: `clogger resumed → <filename>`
+
+**If the file is empty or does not exist** (fresh start):
+
 Run these steps **as separate Bash calls in order — do not combine**:
 
 1. `mkdir -p "$PWD/clogger-files"`
@@ -21,6 +30,14 @@ Run these steps **as separate Bash calls in order — do not combine**:
 3. Set CLOG_FILE = `$PWD/clogger-files/clogger_<SESSION_ID>.txt`
 4. Write sentinel — **required, do not skip**: `printf '%s\n' "$PWD/clogger-files/clogger_<SESSION_ID>.txt" > "$PWD/clogger-files/.active"`
 5. Log this activation exchange to CLOG_FILE using `~/.claude/clogger-append "$CLOG_FILE" << 'CLOGEOF'` with `USER: /clogger` and `CLAUDE: <your one-line reply>`
+
+**Permissions check (fresh start only):** Read `~/.claude/settings.json` and, if it exists, `.claude/settings.local.json`. Search the `permissions.allow` arrays for any entry containing `clogger-append`. If not found in either file, append a second line to the reply.
+
+Reply format (fresh start):
+- Permissions found: `clogger on → <filename>`
+- Permissions missing: `clogger on → <filename>` then on the next line: `⚠ run ./install.sh — you will be prompted for permission on every log write`
+
+---
 
 For every subsequent response this session, silently append to CLOG_FILE:
 
@@ -43,12 +60,6 @@ Rules:
 - Reproduce USER messages **verbatim and in full** — never summarize or abbreviate
 - Append silently — no commentary about logging
 - If the cwd is not writable, skip silently
-
-**Permissions check (before replying):** Read `~/.claude/settings.json` and, if it exists, `.claude/settings.local.json`. Search the `permissions.allow` arrays for any entry containing `clogger-append`. If not found in either file, append a second line to the reply.
-
-Reply format:
-- Permissions found: `clogger on → <filename>`
-- Permissions missing: `clogger on → <filename>` then on the next line: `⚠ run ./install.sh — you will be prompted for permission on every log write`
 
 ---
 

@@ -13,16 +13,20 @@ A lightweight, reusable mechanism to automatically log every user message and Cl
 - **Portable**: works in any project directory, ideally as a shareable skill
 - **Passive**: logs without user intervention once enabled
 
-## Implementation Approach: Hook-Based (Preferred)
+## Implementation Approach: Hook-Based
 
-The primary implementation uses Claude Code's **hooks system** (`~/.claude/settings.json`) rather than prompting Claude to log — this avoids per-turn token cost.
+The active implementation uses hooks plus transcript parsing instead of asking Claude to log its own replies.
+
+- Hook config is installed through `~/.claude/settings.json`
+- Transcript discovery checks `~/.codex/sessions`, `~/.Codex/sessions`, and `~/.claude/projects`
+- `/clogger` only manages session state; hooks do the actual logging
 
 ### Relevant hook types
 - `UserPromptSubmit` — fires when the user submits a message; receives the prompt text via stdin as JSON
 - `Stop` — fires when Claude finishes a turn; receives session metadata
 
 ### Log file
-- Filename: `clogger_<YYYY-MM-DD>.txt` in the cwd (or a configurable path)
+- Filename: `clogger_<YYYY-MM-DD>_<suffix>.txt` under `clogger-files/` in the cwd
 - Format:
   ```
   [2026-03-26T14:32:00Z] USER: <message text or [file: filename.ext]>
@@ -30,22 +34,22 @@ The primary implementation uses Claude Code's **hooks system** (`~/.claude/setti
   ---
   ```
 
-### Known limitations to design around
-1. **Capturing Claude's response text in hooks** is the hard problem. The `Stop` hook does not directly provide the response body — the session transcript file (`.claude/` project dir) is the most reliable source.
-2. **File upload representation**: hooks receive the prompt JSON which may include file metadata; extract filenames to represent as `[file: foo.pdf]`.
-3. A skill-only approach (instructing Claude to self-log) does work but costs tokens every turn.
+### Current design notes
+1. `UserPromptSubmit` stores the pending prompt in a per-session state file under `clogger-files/.clogger-sessions/`.
+2. `Stop` reads the transcript and prefers `task_complete.last_agent_message` for the final assistant text.
+3. Dedupe is mandatory because `Stop` can fire more than once for the same completed turn.
+4. The state is session-scoped, so multiple sessions in one project can log independently.
 
-## Skill File Approach (Alternative / Complement)
+## Skill File Approach
 
-A `.claude/skills/clogger.md` file can instruct Claude to append to a log file after each exchange using the `Write` or `Bash` tool. This is simpler to share but adds 1-2 tool calls per turn.
+The skill is now only a control surface for `start`, `resume`, `stop`, and `status`. It shells out to the installed helper and does not perform any per-turn log appends itself.
 
 ## Key Files
 
-- `skills/clogger.md` — activates logging (`/clogger`)
-- `skills/clogger-stop.md` — deactivates logging (`/clogger-stop`)
-- `skills/clogger-status.md` — reports current state (`/clogger-status`)
-- `install.sh` — copies all skills to `~/.claude/skills/`
-- `uninstall.sh` — removes all skills from `~/.claude/skills/`
+- `clogger.py` — helper CLI and hook handlers
+- `skills/clogger/SKILL.md` — `/clogger` control surface
+- `install.sh` — installs the skill, helper, wrapper, permissions, and hooks
+- `uninstall.sh` — removes the helper, skill, wrapper, permissions, and hooks
 
 ## README
 
@@ -53,7 +57,7 @@ After any material changes to skills, commands, or user-facing behavior, update 
 
 ## Pressure Test Notes
 
-- Hook scripts must be fast (<200ms) or they will visibly delay the session
-- Log file should be opened in append mode; concurrent session safety is a nice-to-have
-- The `Stop` hook approach for capturing Claude's response needs validation — may need to read from the Claude Code session transcript instead
-- Sharing: a skill file is trivially shareable (single markdown file); hook-based requires an install step to modify `settings.json`
+- `Stop` should retry briefly because transcript writes can lag the hook event.
+- Keep transcript parsing bounded to the tail of the file.
+- Preserve log append mode and do not truncate existing files.
+- Do not reintroduce any design that depends on the model remembering to self-log.

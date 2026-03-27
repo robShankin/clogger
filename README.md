@@ -14,7 +14,9 @@ cd clogger
 ./install.sh
 ```
 
-You only need to do this once. It works globally across all your Claude Code sessions. The installer also adds the required bash permissions to `~/.claude/settings.json` so clogger never prompts you for permission.
+You only need to do this once. It works globally across all your Claude Code sessions. The installer adds two permissions to `~/.claude/settings.json` so clogger never prompts for confirmation:
+- `Bash(~/.claude/clogger-append:*)` — runs the logging helper
+- `Write(/tmp/clogger-entry-*)` — writes session-scoped temp files to pass log content to the helper (avoids Claude Code's bash safety check on arbitrary text)
 
 ## Use
 

@@ -15,9 +15,12 @@ cp -r "$SKILL_DIR_SRC/clogger" "$SKILL_DIR/clogger"
 APPEND_SCRIPT="$HOME/.claude/clogger-append"
 cat > "$APPEND_SCRIPT" << 'SCRIPTEOF'
 #!/usr/bin/env bash
-# clogger-append <logfile> — reads stdin, prepends ISO8601 timestamp to USER: and CLAUDE: lines
+# clogger-append <logfile> [entry-file]
+#   entry-file: if provided, read from this file and delete after writing
+#   otherwise: read from stdin
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 LOGFILE="$1"
+ENTRY_FILE="${2:-}"
 
 if ! exec 3>> "$LOGFILE" 2>/dev/null; then
   printf '[%s] APPEND-FAILED: could not open %s\n' "$TS" "$LOGFILE" \
@@ -25,15 +28,21 @@ if ! exec 3>> "$LOGFILE" 2>/dev/null; then
   exit 1
 fi
 
-while IFS= read -r line; do
-  if [[ "$line" == "USER: "* ]] || [[ "$line" == "CLAUDE: "* ]]; then
+INPUT="${ENTRY_FILE:-/dev/stdin}"
+
+while IFS= read -r line <&4; do
+  if [[ "$line" == "USER: "* ]] || [[ "$line" == "CLAUDE: "* ]] || [[ "$line" == "SELECTED: "* ]]; then
     printf '[%s] %s\n' "$TS" "$line" >&3
   else
     printf '%s\n' "$line" >&3
   fi
-done
+done 4< "$INPUT"
 
 exec 3>&-
+
+if [[ -n "$ENTRY_FILE" ]] && [[ -f "$ENTRY_FILE" ]]; then
+  rm -f "$ENTRY_FILE"
+fi
 SCRIPTEOF
 chmod +x "$APPEND_SCRIPT"
 
@@ -42,6 +51,7 @@ CLOGGER_PERMS=(
   "Bash(mkdir -p:*)"
   "Bash(printf:*)"
   "Bash(~/.claude/clogger-append:*)"
+  "Write(/tmp/clogger-entry-*)"
 )
 
 if command -v python3 &>/dev/null; then
